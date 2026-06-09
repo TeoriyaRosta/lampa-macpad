@@ -39,19 +39,30 @@
         (document.head || document.documentElement).appendChild(el);
     }
 
-    // Вертикальный скролл колёсиком → горизонтальный для каруселей
+    // Вертикальный скролл колёсиком → горизонтальный для каруселей.
+    // Трекпад Mac шлёт много событий с инерцией, поэтому шаг ограничиваем,
+    // а если жест уже горизонтальный (deltaX) — не трогаем, нативный скролл сам справится.
     function setupScroll() {
         document.addEventListener('wheel', function (e) {
             try {
                 var row = e.target.closest('.items-scroll, .scroll--horizontal');
                 if (!row) return;
+
                 var horizontalOnly =
                     row.scrollWidth > row.clientWidth + 4 &&
                     row.scrollHeight <= row.clientHeight + 4;
-                if (horizontalOnly && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-                    e.preventDefault();
-                    row.scrollLeft += e.deltaY * 1.4;
-                }
+                if (!horizontalOnly) return;
+
+                // Уже горизонтальный жест двумя пальцами — отдаём браузеру
+                if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+
+                // Вертикальное колесо → горизонталь, без усиления инерции
+                e.preventDefault();
+                var step = e.deltaY;
+                // Ограничиваем рывок: хвост инерции не разгоняет карусель
+                if (step > 60) step = 60;
+                if (step < -60) step = -60;
+                row.scrollLeft += step;
             } catch (_) {}
         }, { passive: false });
     }
